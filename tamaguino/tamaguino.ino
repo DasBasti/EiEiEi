@@ -138,7 +138,7 @@ int poops [3] = {
 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200);s
     pinMode(OLED_SUPPLY_nEN, OUTPUT);
     Wire.begin(OLED_SDA, OLED_SCL);
     //pinMode(button2Pin, INPUT);
