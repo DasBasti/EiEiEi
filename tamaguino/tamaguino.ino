@@ -1216,7 +1216,7 @@ void loop() {
         display.display();
         if(millis() - lastCloud> 10000){
           lastCloud = millis();
-          devPing->publish("test");
+          devPing->publish(PET_NAME);
         }
          
     }else{
