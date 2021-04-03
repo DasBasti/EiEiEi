@@ -15,8 +15,13 @@
 #include <Arduino.h>
 #include <esp_int_wdt.h>
 #include <esp_task_wdt.h>
+#include <WiFi.h>
+#include <Adafruit_MQTT.h>
+#include <Adafruit_MQTT_Client.h>
+#include <ArduinoUniqueID.h>
 
 #include "animations.h"
+#include "settings.h"
 
 //ESP32 Sleep
 #include <esp_wifi.h>
@@ -49,6 +54,21 @@ int button1State = 0;
 int button2State = 0;
 int button3State = 0;
 
+
+const char *ssid = WIFI_SSID;
+const char *password = WIFI_PASS;
+
+// Adafruit IO
+const char MQTT_SERVER[] = "cloud.eieiei.lol";
+const int MQTT_SERVERPORT = 1883;
+char MQTT_CLIENTID[21] = {};
+
+WiFiClient client;
+Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_SERVERPORT, MQTT_CLIENTID);
+Adafruit_MQTT_Publish *devPing;
+Adafruit_MQTT_Subscribe *devSubscribe;
+
+
 // Walking
 int walkPos=0;
 int walkXPos=0;
@@ -70,7 +90,7 @@ const int cloud1Width=32;
 float cloud1XPos=display.width()+cloud1Width;
 
 int stars [6][2];
-
+int lastCloud = 0;
 // menus
 bool menuOpened = false;
 int menu=0;
@@ -137,9 +157,71 @@ int poops [3] = {
 };
 
 
+
+
 void setup() {
   Serial.begin(115200);
+  UniqueIDdump(Serial);
+  
+    String id = "dino/";
+    for(size_t i = 0; i < 8; i++)
+      id += String(UniqueID[i], HEX);
+    id.toCharArray(MQTT_CLIENTID, 21);
+    devPing = new Adafruit_MQTT_Publish(&mqtt, "dino/in");
+    devSubscribe = new Adafruit_MQTT_Subscribe(&mqtt, MQTT_CLIENTID);
+
+  Serial.print(F("Connecting to "));
+  Serial.println(ssid);
+  WiFi.disconnect();
+  WiFi.setSleep(false);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.setHostname("EiEiEi");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(F("."));
+  }
+  Serial.println();
+
+  Serial.println(F("WiFi connected"));
+  Serial.println(F("IP address: "));
+  Serial.println(WiFi.localIP());
+
+
+  //Subscribe to server notifications
+  mqtt.subscribe(devSubscribe);
+
+  // connect to mqtt
+  Serial.print(F("Connecting to Cloud... "));
+
+  int8_t ret;
+
+  while ((ret = mqtt.connect()) != 0) {
+
+    yield();
+    switch (ret) {
+      case 1: Serial.println(F("Wrong protocol")); break;
+      case 2: Serial.println(F("ID rejected")); break;
+      case 3: Serial.println(F("Server unavail")); break;
+      case 4: Serial.println(F("Bad user/pass")); break;
+      case 5: Serial.println(F("Not authed")); break;
+      case 6: Serial.println(F("Failed to subscribe")); break;
+      default: Serial.println(F("Connection failed")); break;
+    }
+
+    if (ret >= 0)
+      mqtt.disconnect();
+
+    Serial.println(F("Retrying connection..."));
+    delay(200);
+
+  }
+
+  Serial.println(F("Cloud Connected!"));
+
     pinMode(OLED_SUPPLY_nEN, OUTPUT);
+    digitalWrite(OLED_SUPPLY_nEN, LOW);
     Wire.begin(OLED_SDA, OLED_SCL);
     //pinMode(button2Pin, INPUT);
     //pinMode(button3Pin, INPUT);
@@ -1132,6 +1214,10 @@ void loop() {
         }
 
         display.display();
+        if(millis() - lastCloud> 10000){
+          lastCloud = millis();
+          devPing->publish("test");
+        }
          
     }else{
         //dead...
