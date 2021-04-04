@@ -1553,7 +1553,7 @@ void DelayLightSleep(int milis)
 
 void send_status()
 {
-  String json = '{"dino":{ "id": "' + MQTT_CLIENTID + '", "name": "' + String(PET_NAME) + '", "hunger": ';
+  String json = '{"dino":{ "id": "' + String(MQTT_CLIENTID) + '", "name": "' + String(PET_NAME) + '", "hunger": ';
   json += String(int(hunger * fixPointFactor), DEC);
   json += ', "happiness" : ';
   json += String(int(happiness * fixPointFactor), DEC);
@@ -1573,5 +1573,7 @@ void send_status()
   json += ', "fixPointFactor" : ';
   json += String(fixPointFactor, DEC);
   json += '}';
+  Serial.print("Publish:");
+  Serial.println(json);
   devPing->publish(json.c_str());
 }
