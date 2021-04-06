@@ -30,8 +30,7 @@ jobs:
       with:
         name: firmware.bin
         path: .pio/build/eieiei_esp32dev/firmware.bin
-        retention-days: 5
-        
+        retention-days: 5       
         
         
         
