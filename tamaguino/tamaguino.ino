@@ -1569,6 +1569,8 @@ void send_status()
   json += String(hiScore, DEC);
   json += ", \"poops\" : ";
   json += String(int(poopometer * fixPointFactor), DEC);
+  json += ", \"sleeping\" : ";
+  json += String(sleeping);
   json += "}";
   json += ", \"fixPointFactor\" : ";
   json += String(fixPointFactor, DEC);
