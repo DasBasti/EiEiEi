@@ -19,5 +19,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install platformio
+    - name: Create mock settings.h
+      run: mv tamaguino/settings.h.example tamaguino/settings.h           
     - name: Run PlatformIO build on selected platforms
       run: platformio run 
