@@ -286,7 +286,7 @@ void setup()
   display.clearDisplay();
   int x = 0;
   int y = 0;
-  while (y < 255)
+  while (y < 8)
   {
     display.clearDisplay();
     display.setTextColor(WHITE);
