@@ -23,3 +23,15 @@ jobs:
       run: mv tamaguino/settings.h.example tamaguino/settings.h           
     - name: Run PlatformIO build on selected platforms
       run: platformio run 
+      
+    - name: Upload Artifact
+      if: success()
+      uses: actions/upload-artifact@v2
+      with:
+        name: firmware.bin
+        path: .pio/build/eieiei_esp32dev/firmware.bin
+        retention-days: 5
+        
+        
+        
+        
