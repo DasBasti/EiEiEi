@@ -206,25 +206,39 @@ void setup()
 
         // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
         Serial.println("Start updating " + type);
+        display.clearDisplay();
+        display.setCursor(2, 2);
+        display.print("Starting OTA...");
       })
       .onEnd([]() {
         Serial.println("\nEnd");
+        display.setCursor(2,22);
+        display.print("OTA finished");
       })
       .onProgress([](unsigned int progress, unsigned int total) {
         Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+        display.setCursor(2, 12);
+        display.printf("Progress: %u%%\r", (progress / (total / 100)));
       })
       .onError([](ota_error_t error) {
+        String error_msg = "";
         Serial.printf("Error[%u]: ", error);
+        display.setCursor(2, 22);
+        display.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR)
-          Serial.println("Auth Failed");
+          error_msg = "Auth Failed";
         else if (error == OTA_BEGIN_ERROR)
-          Serial.println("Begin Failed");
+          error_msg = "Begin Failed";
         else if (error == OTA_CONNECT_ERROR)
-          Serial.println("Connect Failed");
+          error_msg = "Connect Failed";
         else if (error == OTA_RECEIVE_ERROR)
-          Serial.println("Receive Failed");
+          error_msg = "Receive Failed";
         else if (error == OTA_END_ERROR)
-          Serial.println("End Failed");
+          error_msg = "End Failed";
+
+        Serial.println(error_msg);
+        display.setCursor(2, 32);
+        display.print(error_msg);
       });
 
   ArduinoOTA.setHostname(WIFI_HOSTNAME);
