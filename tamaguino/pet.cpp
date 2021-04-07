@@ -1,9 +1,7 @@
 #include "pet.h"
 
-Pet::Pet(String name) :
-    m_name(name)
+Pet::Pet(String name) : m_name(name)
 {
-
 }
 
 String Pet::GetName()
@@ -11,17 +9,40 @@ String Pet::GetName()
     return m_name;
 }
 
-
 float Pet::GetHunger()
 {
     return m_hunger;
+}
+
+void Pet::SetHunger(float hunger)
+{
+    m_hunger = hunger;
 }
 
 float Pet::GetHappiness()
 {
     return m_happiness;
 }
-
+void Pet::SetHappiness(float happiness)
+{
+    m_happiness = happiness;
+}
+void Pet::SetHealth(float health)
+{
+    m_health = health;
+}
+void Pet::SetDiscipline(float discipline)
+{
+    m_discipline = discipline;
+}
+void Pet::SetWeight(float weight)
+{
+    m_weight = weight;
+}
+void Pet::SetAge(float age)
+{
+    m_age = age;
+}
 float Pet::GetHealth()
 {
     return m_health;
@@ -50,6 +71,11 @@ bool Pet::GetIsAlive()
 bool Pet::GetIsSleeping()
 {
     return m_isSleeping;
+}
+
+void Pet::SetIsSleeping(bool sleeping)
+{
+    m_isSleeping = sleeping;
 }
 
 float Pet::GetPoopometer()
@@ -92,7 +118,7 @@ void Pet::Lifecycle()
             //discipline-=0.02;
         }
         m_age += 0.0000025;
-        
+
         //diarrhea :) for testing
         //poopometer+=0.005;
 

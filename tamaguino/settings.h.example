@@ -6,6 +6,8 @@
  * PET_NAME: Name of your pet to be shown in event log
  */
 
+#define CLOUD_SAVE
+
 #define WIFI_SSID "WifiName"
 #define WIFI_PASS "SuperG3he1M"
 #define WIFI_HOSTNAME "EiEiEi"

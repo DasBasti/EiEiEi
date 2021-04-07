@@ -16,9 +16,8 @@
 #include <esp_int_wdt.h>
 #include <esp_task_wdt.h>
 #include <WiFi.h>
-#include <Adafruit_MQTT.h>
-#include <Adafruit_MQTT_Client.h>
 #include <ArduinoUniqueID.h>
+#include <PubSubClient.h>
 
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
@@ -40,7 +39,7 @@ Pet my_pet(PET_NAME);
 #define TIME_TO_SLEEP 5           /* Time ESP32 will go to sleep (in seconds) */
 RTC_DATA_ATTR int bootCount = 0;
 //#define SLEEPDELAY
-const int fixPointFactor = 1000;
+int fixPointFactor = 1000;
 // Pins
 //const int button1Pin = 21;
 //const int button2Pin = 22;
@@ -70,10 +69,10 @@ const char MQTT_SERVER[] = "cloud.eieiei.lol";
 const int MQTT_SERVERPORT = 1883;
 char MQTT_CLIENTID[21] = {};
 
+void mqtt_callback(char *topic, byte *payload, unsigned int length);
 WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_SERVERPORT, MQTT_CLIENTID);
-Adafruit_MQTT_Publish *devPing;
-Adafruit_MQTT_Subscribe *devSubscribe;
+PubSubClient mqtt(MQTT_SERVER, MQTT_SERVERPORT, mqtt_callback, client);
+String subPath;
 
 // Walking
 int walkPos = 0;
@@ -151,18 +150,97 @@ bool obstacle2show = false;
 int obstacle1XPos = 0;
 int obstacle2XPos = 0;
 
+void mqtt_callback(char *topic, byte *bpayload, unsigned int length)
+{
+  String payload;
+  for (int i = 0; i < length; i++)
+  {
+    payload += ((char)bpayload[i]);
+  }
+
+  if (String(topic) == (subPath + "/hunger"))
+  {
+    my_pet.SetHunger(payload.toInt() / fixPointFactor);
+  }
+  if (String(topic) == (subPath + "/happiness"))
+  {
+    my_pet.SetHappiness(payload.toInt() / fixPointFactor);
+  }
+  if (String(topic) == (subPath + "/health"))
+  {
+    my_pet.SetHealth(payload.toInt() / fixPointFactor);
+  }
+  if (String(topic) == (subPath + "/discipline"))
+  {
+    my_pet.SetDiscipline(payload.toInt() / fixPointFactor);
+  }
+  if (String(topic) == (subPath + "/weight"))
+  {
+    my_pet.SetWeight(payload.toInt() / fixPointFactor);
+  }
+  if (String(topic) == (subPath + "/age"))
+  {
+    my_pet.SetAge(payload.toInt() / fixPointFactor);
+  }
+
+  if (String(topic) == (subPath + "/highscore"))
+  {
+    hiScore = (payload.toInt());
+  }
+
+  if (String(topic) == (subPath + "/poops"))
+  {
+    hiScore = (payload.toInt() / fixPointFactor);
+  }
+
+  if (String(topic) == (subPath + "/sleeping"))
+  {
+    my_pet.SetIsSleeping(payload.toInt() == 1);
+  }
+}
+
+bool mqtt_reconnect()
+{
+  // Loop until we're reconnected
+  if (!mqtt.connected())
+  {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (mqtt.connect("arduinoClient"))
+    {
+      String id;
+      for (size_t i = 0; i < 8; i++)
+        id += String(UniqueID[i], HEX);
+      id.toCharArray(MQTT_CLIENTID, 16);
+
+      subPath = "dino/" + id + "/" + PET_NAME;
+      Serial.println("connected");
+// Once connected, publish an announcement...
+//mqtt.publish("outTopic", "hello world");
+// ... and resubscribe
+#ifdef CLOUD_SAVE
+      mqtt.subscribe((subPath + "/#").c_str());
+#endif
+    }
+    else
+    {
+      Serial.print("failed, rc=");
+      Serial.print(mqtt.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 1 seconds before retrying
+      delay(1000);
+    }
+  }
+  return mqtt.connected();
+}
+
 void setup()
 {
   Serial.begin(115200);
   UniqueIDdump(Serial);
 
-  String id;
-  for (size_t i = 0; i < 8; i++)
-    id += String(UniqueID[i], HEX);
-  id.toCharArray(MQTT_CLIENTID, 16);
-  devPing = new Adafruit_MQTT_Publish(&mqtt, "dino/in");
-  String subPath = "dino/" + id;
-  devSubscribe = new Adafruit_MQTT_Subscribe(&mqtt, subPath.c_str());
+  mqtt_reconnect();
+  // subscribe to subPath to get retained messages
 
   Serial.print(F("Connecting to "));
   Serial.println(ssid);
@@ -182,8 +260,8 @@ void setup()
     // und ein weiterer reset ist nötig -> wird dadurch umgangen
     if (cnt > 10)
     {
-        WiFi.begin(ssid, password);
-        cnt = 0;
+      WiFi.begin(ssid, password);
+      cnt = 0;
     }
     delay(500);
   }
@@ -209,7 +287,7 @@ void setup()
       })
       .onEnd([]() {
         Serial.println("\nEnd");
-        display.setCursor(2,22);
+        display.setCursor(2, 22);
         display.print("OTA finished");
       })
       .onProgress([](unsigned int progress, unsigned int total) {
@@ -242,48 +320,6 @@ void setup()
   ArduinoOTA.begin();
 
   //Subscribe to server notifications
-  mqtt.subscribe(devSubscribe);
-
-  // connect to mqtt
-  Serial.print(F("Connecting to Cloud... "));
-
-  int8_t ret;
-
-  while ((ret = mqtt.connect()) != 0)
-  {
-
-    yield();
-    switch (ret)
-    {
-    case 1:
-      Serial.println(F("Wrong protocol"));
-      break;
-    case 2:
-      Serial.println(F("ID rejected"));
-      break;
-    case 3:
-      Serial.println(F("Server unavail"));
-      break;
-    case 4:
-      Serial.println(F("Bad user/pass"));
-      break;
-    case 5:
-      Serial.println(F("Not authed"));
-      break;
-    case 6:
-      Serial.println(F("Failed to subscribe"));
-      break;
-    default:
-      Serial.println(F("Connection failed"));
-      break;
-    }
-
-    if (ret >= 0)
-      mqtt.disconnect();
-
-    Serial.println(F("Retrying connection..."));
-    delay(200);
-  }
 
   Serial.println(F("Cloud Connected!"));
 
@@ -371,6 +407,7 @@ void loop()
 {
 
   ArduinoOTA.handle();
+  mqtt_reconnect();
 #ifdef SLEEPDELAY
   DelayLightSleep(50);
 #else
@@ -421,19 +458,18 @@ void loop()
     /* -------- MODIFY PET STATS -------- */
     my_pet.Lifecycle();
 
-
     if (my_pet.GetPoopometer() >= 10)
     {
-        my_pet.SetPoops(random(20, display.width() + 32));
-        if (soundEnabled)
-        {
-            esp32tone(200, 50);
-        }
+      my_pet.SetPoops(random(20, display.width() + 32));
+      if (soundEnabled)
+      {
+        esp32tone(200, 50);
+      }
     }
 
     if (((my_pet.GetHunger() > 19.99975 && my_pet.GetHunger() < 20.00025) || (my_pet.GetHappiness() > 19.9998 && my_pet.GetHappiness() < 20.0002) || (my_pet.GetHealth() > 19.9999 && my_pet.GetHealth() < 20.0001)) && soundEnabled)
     {
-        esp32tone(200, 50);
+      esp32tone(200, 50);
     }
 
     if (my_pet.GetHunger() <= 20 || my_pet.CountPoops() > 0 || my_pet.GetHappiness() <= 20 || my_pet.GetHealth() <= 20)
@@ -1250,8 +1286,8 @@ void loop()
         //discipline
         if (action == 601 && !my_pet.GetIsSleeping())
         {
-            my_pet.AddToDiscipline(12.0);
-            my_pet.AddToHappiness(-3.0, true);
+          my_pet.AddToDiscipline(12.0);
+          my_pet.AddToHappiness(-3.0, true);
 #ifdef SLEEPDELAY
           DelayLightSleep(150);
 #else
@@ -1406,9 +1442,10 @@ void loop()
       }
       display.println(score);
     }
-
+    display.fillRect(0, 0, 3, 3, WHITE);
     display.display();
-    if (millis() - lastCloud > 10000)
+    mqtt.loop();
+    if (millis() - lastCloud > 30000)
     {
       lastCloud = millis();
       send_status();
@@ -1455,8 +1492,6 @@ char *getItem(int menu, int index)
   return oneItem;
 }
 
-
-
 // tone methods for ESP32
 void esp32tone(int frequency, unsigned long duration)
 {
@@ -1490,29 +1525,17 @@ void DelayLightSleep(int milis)
 
 void send_status()
 {
-  String json = "{\"dino\":{ \"id\": \"" + String(MQTT_CLIENTID) + "\", \"name\": \"" + my_pet.GetName() + "\", \"hunger\": ";
-  json += String(int(my_pet.GetHunger() * fixPointFactor), DEC);
-  json += ", \"happiness\" : ";
-  json += String(int(my_pet.GetHappiness() * fixPointFactor), DEC);
-  json += ", \"health\" : ";
-  json += String(int(my_pet.GetHealth() * fixPointFactor), DEC);
-  json += ", \"discipline\" : ";
-  json += String(int(my_pet.GetDiscipline() * fixPointFactor), DEC);
-  json += ", \"weight\" : ";
-  json += String(int(my_pet.GetWeight() * fixPointFactor), DEC);
-  json += ", \"age\" : ";
-  json += String(int(my_pet.GetAge() * fixPointFactor), DEC);
-  json += ", \"highscore\" : ";
-  json += String(hiScore, DEC);
-  json += ", \"poops\" : ";
-  json += String(int(my_pet.GetPoopometer() * fixPointFactor), DEC);
-  json += ", \"sleeping\" : ";
-  json += String(my_pet.GetIsSleeping());
-  json += "}";
-  json += ", \"fixPointFactor\" : ";
-  json += String(fixPointFactor, DEC);
-  json += '}';
-  Serial.print("Publish:");
-  Serial.println(json);
-  devPing->publish(json.c_str());
+  mqtt.unsubscribe((subPath + "/#").c_str());
+
+  mqtt.publish((subPath + "/fixPointFactor").c_str(), String(fixPointFactor, DEC).c_str(), true);
+  mqtt.publish((subPath + "/hunger").c_str(), String(int(my_pet.GetHunger() * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/happiness").c_str(), String(int(my_pet.GetHappiness() * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/health").c_str(), String(int(my_pet.GetHealth() * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/discipline").c_str(), String(int(my_pet.GetDiscipline() * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/weight").c_str(), String(int(my_pet.GetWeight() * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/age").c_str(), String(int(my_pet.GetAge() * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/highscore").c_str(), String(int(hiScore * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/poops").c_str(), String(int(my_pet.GetPoopometer() * fixPointFactor), DEC).c_str(), true);
+  mqtt.publish((subPath + "/sleeping").c_str(), String(my_pet.GetIsSleeping()).c_str(), true);
+  Serial.print("Update cloud");
 }
