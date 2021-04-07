@@ -8,4 +8,5 @@
 
 #define WIFI_SSID "WifiName"
 #define WIFI_PASS "SuperG3he1M"
+#define WIFI_HOSTNAME "EiEiEi"
 #define PET_NAME "Dino"

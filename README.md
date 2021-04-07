@@ -14,3 +14,7 @@ Anschließend kann mit der Arduino IDE die notwendigen Bibliotheken installiert 
     - ArduinoUniqueID
 
 Der Code kann dann auf das EiEiEi hochgeladen werden.
+
+### PlatformIO / OTA
+
+Beim ersten mal muss der Code per USB-Kabel hochgeladen werden. Danach besteht die Möglichkeit eines O(ver)T(he)A(ir)-Updates. Damit das OTA-Update funktioniert, müssen in der platformio.ini die entsprechenden Zeilen (upload_protocol, upload_port, upload_flags) einkommentiert werden.
