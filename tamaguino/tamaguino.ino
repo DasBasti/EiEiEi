@@ -27,6 +27,10 @@
 #include "animations.h"
 #include "settings.h"
 
+#include "pet.h"
+
+Pet my_pet(PET_NAME);
+
 //ESP32 Sleep
 #include <esp_wifi.h>
 #include <esp_bt.h>
@@ -115,12 +119,12 @@ const char mainMenu[MENUSIZE][8][STRING_SIZE] PROGMEM = {
 };
 
 /* ------- PET STATS ------- */
-float hunger = 100;
-float happiness = 100;
-float health = 100;
-float discipline = 100;
-float weight = 1;
-float age = 0;
+// float hunger = 100;
+// float happiness = 100;
+// float health = 100;
+// float discipline = 100;
+// float weight = 1;
+// float age = 0;
 
 //settings
 bool soundEnabled = true;
@@ -130,9 +134,6 @@ int setting = 0;
 
 bool notification = false;
 int notificationBlink = 0;
-bool dead = false;
-
-bool sleeping = false;
 
 //game
 bool game = false;
@@ -149,10 +150,6 @@ bool obstacle1show = false;
 bool obstacle2show = false;
 int obstacle1XPos = 0;
 int obstacle2XPos = 0;
-
-float poopometer = 0;
-int poops[3] = {
-    0, 0, 0};
 
 void setup()
 {
@@ -419,81 +416,38 @@ void loop()
 
   //char* str = "";
 
-  if (!dead)
+  if (my_pet.GetIsAlive())
   {
     /* -------- MODIFY PET STATS -------- */
-    // TODO: different gradients regarding to age
-    if (sleeping)
+    my_pet.Lifecycle();
+
+
+    if (my_pet.GetPoopometer() >= 10)
     {
-      hunger -= 0.00005;
-      poopometer += 0.00005;
-      if (happiness - 0.0001 > 0)
-      {
-        happiness -= 0.0001;
-      }
-      health -= 0.00005 + countPoops() * 0.0001;
-      if (discipline - 0.0001 > 0)
-      {
-        discipline -= 0.0001;
-      }
+        my_pet.SetPoops(random(20, display.width() + 32));
+        if (soundEnabled)
+        {
+            esp32tone(200, 50);
+        }
     }
-    else
+
+    if (((my_pet.GetHunger() > 19.99975 && my_pet.GetHunger() < 20.00025) || (my_pet.GetHappiness() > 19.9998 && my_pet.GetHappiness() < 20.0002) || (my_pet.GetHealth() > 19.9999 && my_pet.GetHealth() < 20.0001)) && soundEnabled)
     {
-      hunger -= 0.00025;
-      poopometer += 0.00025;
-      if (happiness - 0.0002 > 0)
-      {
-        happiness -= 0.0002;
-      }
-      health -= 0.0001 + countPoops() * 0.0001;
-      if (discipline - 0.0002 > 0)
-      {
-        discipline -= 0.0002;
-      }
-      //discipline-=0.02;
-    }
-    age += 0.0000025;
-
-    //diarrhea :) for testing
-    //poopometer+=0.005;
-
-    //health-=1;
-    //health-=countPoops()*0.0001;
-    //health-=countPoops()*0.05;
-
-    if (poopometer >= 10)
-    {
-      poopometer = countPoops();
-      // ESP32 uses std's round function which returns a double
-      poops[(int)round(poopometer)] = random(20, display.width() + 32);
-      if (soundEnabled)
-      {
         esp32tone(200, 50);
-      }
-      poopometer = 0;
     }
 
-    if ((hunger > 19.99975 && hunger < 20.00025) || (happiness > 19.9998 && happiness < 20.0002) || (health > 19.9999 && health < 20.0001) && soundEnabled)
-    {
-      if (soundEnabled)
-      {
-        esp32tone(200, 50);
-      }
-    }
-
-    if (hunger <= 20 || countPoops() > 0 || happiness <= 20 || health <= 20)
+    if (my_pet.GetHunger() <= 20 || my_pet.CountPoops() > 0 || my_pet.GetHappiness() <= 20 || my_pet.GetHealth() <= 20)
     {
       notification = true;
     }
-    if (hunger > 20 && countPoops() == 0 && happiness > 20 && health > 20)
+    if (my_pet.GetHunger() > 20 && my_pet.CountPoops() == 0 && my_pet.GetHappiness() > 20 && my_pet.GetHealth() > 20)
     {
       notification = false;
       digitalWrite(13, LOW);
     }
 
-    if (hunger <= 0 || health <= 0 || happiness <= 0)
+    if (!my_pet.GetIsAlive())
     {
-      dead = true;
       if (soundEnabled)
       {
         esp32tone(500, 500);
@@ -721,12 +675,12 @@ void loop()
       sunXPos = -2 * sunRadius;
       sunOrMoon = !sunOrMoon;
     }
-    if (sleeping)
+    if (my_pet.GetIsSleeping())
     {
       sunOrMoon = true;
     }
 
-    if (sleeping)
+    if (my_pet.GetIsSleeping())
     {
       sunOrMoon = true;
     }
@@ -860,18 +814,11 @@ void loop()
             hiScore = score;
             newHiScore = true;
           }
-          if (happiness + 15 < 100)
+          my_pet.AddToHappiness(15.0);
+          my_pet.AddToHealth(-1.0);
+          if (my_pet.GetWeight() - score * 0.0025 > 5)
           {
-            happiness += 15;
-          }
-          else
-          {
-            happiness = 100;
-          }
-          health -= 1;
-          if (weight - score * 0.0025 > 5)
-          {
-            weight -= score * 0.0025;
+            my_pet.AddToWeight(score * 0.0025);
           }
         }
       }
@@ -972,7 +919,7 @@ void loop()
     {
 
       /* ------ NO GAME -----*/
-      if (!sleeping)
+      if (!my_pet.GetIsSleeping())
       {
         display.drawBitmap(walkXPos, 26, dinoWalk[walkPos + walkDirOffset], 48, 24, WHITE);
       }
@@ -1008,7 +955,7 @@ void loop()
       }
       if (walkRight)
       {
-        if (!sleeping)
+        if (!my_pet.GetIsSleeping())
         {
           walkXPos += 1;
           grassXPos += 2;
@@ -1022,7 +969,7 @@ void loop()
       }
       else
       {
-        if (!sleeping)
+        if (!my_pet.GetIsSleeping())
         {
           walkXPos -= 1;
           grassXPos -= 2;
@@ -1043,9 +990,9 @@ void loop()
       // draw poops
       for (int i = 0; i < 3; i++)
       {
-        if (poops[i] > 0)
+        if (my_pet.CountPoops() > 0)
         {
-          display.drawBitmap(-walkXPos + poops[i], 44, poop, 16, 6, WHITE);
+          display.drawBitmap(-walkXPos + my_pet.GetPoopsAt(i), 44, poop, 16, 6, WHITE);
         }
       }
       //draw front grass
@@ -1056,7 +1003,7 @@ void loop()
       //draw trees
       display.drawBitmap(-treesXPos, 23, trees, 112, 20, WHITE);
 
-      if (!sleeping)
+      if (!my_pet.GetIsSleeping())
       {
         if (walkAnimReverse)
         {
@@ -1124,7 +1071,7 @@ void loop()
     if (action > 0)
     {
 
-      if ((action == 101 || action == 102 || action == 103) && !sleeping && random(1, (11 - round(discipline / 10))) == 1)
+      if ((action == 101 || action == 102 || action == 103) && !my_pet.GetIsSleeping() && random(1, (11 - round(my_pet.GetDiscipline() / 10))) == 1)
       {
         //95-100 discipline = 100% chance to feed
         //85-95 discipline = 50% chance
@@ -1185,46 +1132,41 @@ void loop()
         {
         //apple
         case 101:
-          if (hunger + 10 > 100)
+          if (my_pet.GetHunger() + 10 > 100)
           {
-            hunger = 100;
-            weight += 0.1;
+            my_pet.AddToWeight(0.1);
           }
-          else
+          my_pet.Feed(10);
+          if (my_pet.GetHealth() + 1 <= 100)
           {
-            hunger += 10;
+            my_pet.AddToHealth(1.0);
           }
-          if (health + 1 <= 100)
-          {
-            health += 1;
-          }
-          poopometer += 0.02;
+          my_pet.AddToPoopometer(0.02);
           break;
         //steak
         case 102:
-          if (hunger + 20 > 100)
+          if (my_pet.GetHunger() + 20 > 100)
           {
-            hunger = 100;
-            weight += 0.2;
+            my_pet.AddToWeight(0.2);
           }
           else
           {
-            hunger += 20;
-            weight += 0.1;
+            my_pet.AddToWeight(0.1);
           }
-          if (health - 1 > 0)
+          my_pet.Feed(20);
+          if (my_pet.GetHealth() - 1 > 0)
           {
-            health -= 1;
+            my_pet.AddToHealth(-1);
           }
-          poopometer += 0.05;
+          my_pet.AddToPoopometer(0.05);
           break;
         //water
         case 103:
-          if (hunger + 5 <= 100)
+          if (my_pet.GetHunger() + 5 <= 100)
           {
-            hunger += 5;
+            my_pet.Feed(5);
           }
-          poopometer += 0.01;
+          my_pet.AddToPoopometer(0.01);
           break;
         }
       }
@@ -1248,7 +1190,7 @@ void loop()
       {
       case 201:
         //game
-        if (!sleeping && health > 20)
+        if (!my_pet.GetIsSleeping() && my_pet.GetHealth() > 20)
         {
           game = true;
           walkPos = 0;
@@ -1262,8 +1204,8 @@ void loop()
         break;
       case 301:
         //sleep
-        sleeping = !sleeping;
-        if (!sleeping)
+        my_pet.ToggleIsSleeping();
+        if (!my_pet.GetIsSleeping())
         {
           sunOrMoon = false;
         }
@@ -1279,13 +1221,13 @@ void loop()
         break;
       case 401:
         //bath
-        resetPoops();
+        my_pet.ResetPoops();
         break;
       case 501:
         //doctor
-        if (health < 60)
+        if (my_pet.GetHealth() < 60)
         {
-          health = 100;
+          my_pet.AddToHealth(100);
           for (int i = 0; i < 5; i++)
           {
             display.clearDisplay();
@@ -1306,20 +1248,10 @@ void loop()
         break;
       case 601:
         //discipline
-        if (action == 601 && !sleeping)
+        if (action == 601 && !my_pet.GetIsSleeping())
         {
-          if (discipline + 12 <= 100)
-          {
-            discipline += 12;
-          }
-          else
-          {
-            discipline = 100;
-          }
-          if (happiness - 3 > 0)
-          {
-            happiness -= 3;
-          }
+            my_pet.AddToDiscipline(12.0);
+            my_pet.AddToHappiness(-3.0, true);
 #ifdef SLEEPDELAY
           DelayLightSleep(150);
 #else
@@ -1380,19 +1312,19 @@ void loop()
       }
       if (setting == 701)
       {
-        drawBar(hunger);
+        drawBar(my_pet.GetHunger());
       }
       if (setting == 702)
       {
-        drawBar(happiness);
+        drawBar(my_pet.GetHappiness());
       }
       if (setting == 703)
       {
-        drawBar(health);
+        drawBar(my_pet.GetHealth());
       }
       if (setting == 704)
       {
-        drawBar(discipline);
+        drawBar(my_pet.GetDiscipline());
       }
       if (setting == 705 || setting == 706 || setting == 801)
       {
@@ -1401,12 +1333,12 @@ void loop()
       if (setting == 705)
       {
         //display.setCursor(80,16);
-        display.print(weight, 1);
+        display.print(my_pet.GetWeight(), 1);
         display.println(F(" t"));
       }
       if (setting == 706)
       {
-        display.print(age, 1);
+        display.print(my_pet.GetAge(), 1);
         display.println(F(" y."));
       }
       if (setting == 801)
@@ -1444,7 +1376,7 @@ void loop()
       }
       display.setCursor(120, 30);
       display.println(F("!"));
-      if (dead)
+      if (!my_pet.GetIsAlive())
       {
         digitalWrite(13, LOW);
       }
@@ -1523,26 +1455,7 @@ char *getItem(int menu, int index)
   return oneItem;
 }
 
-int countPoops()
-{
-  int poopsCnt = 0;
-  for (int i = 0; i < 3; i++)
-  {
-    if (poops[i] > 0)
-    {
-      ++poopsCnt;
-    }
-  }
-  return poopsCnt;
-}
 
-void resetPoops()
-{
-  for (int i = 0; i < 3; i++)
-  {
-    poops[i] = 0;
-  }
-}
 
 // tone methods for ESP32
 void esp32tone(int frequency, unsigned long duration)
@@ -1577,24 +1490,24 @@ void DelayLightSleep(int milis)
 
 void send_status()
 {
-  String json = "{\"dino\":{ \"id\": \"" + String(MQTT_CLIENTID) + "\", \"name\": \"" + String(PET_NAME) + "\", \"hunger\": ";
-  json += String(int(hunger * fixPointFactor), DEC);
+  String json = "{\"dino\":{ \"id\": \"" + String(MQTT_CLIENTID) + "\", \"name\": \"" + my_pet.GetName() + "\", \"hunger\": ";
+  json += String(int(my_pet.GetHunger() * fixPointFactor), DEC);
   json += ", \"happiness\" : ";
-  json += String(int(happiness * fixPointFactor), DEC);
+  json += String(int(my_pet.GetHappiness() * fixPointFactor), DEC);
   json += ", \"health\" : ";
-  json += String(int(health * fixPointFactor), DEC);
+  json += String(int(my_pet.GetHealth() * fixPointFactor), DEC);
   json += ", \"discipline\" : ";
-  json += String(int(discipline * fixPointFactor), DEC);
+  json += String(int(my_pet.GetDiscipline() * fixPointFactor), DEC);
   json += ", \"weight\" : ";
-  json += String(int(weight * fixPointFactor), DEC);
+  json += String(int(my_pet.GetWeight() * fixPointFactor), DEC);
   json += ", \"age\" : ";
-  json += String(int(age * fixPointFactor), DEC);
+  json += String(int(my_pet.GetAge() * fixPointFactor), DEC);
   json += ", \"highscore\" : ";
   json += String(hiScore, DEC);
   json += ", \"poops\" : ";
-  json += String(int(poopometer * fixPointFactor), DEC);
+  json += String(int(my_pet.GetPoopometer() * fixPointFactor), DEC);
   json += ", \"sleeping\" : ";
-  json += String(sleeping);
+  json += String(my_pet.GetIsSleeping());
   json += "}";
   json += ", \"fixPointFactor\" : ";
   json += String(fixPointFactor, DEC);
