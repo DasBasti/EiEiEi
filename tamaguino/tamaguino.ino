@@ -172,20 +172,29 @@ void setup()
   WiFi.disconnect();
   WiFi.setSleep(false);
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
-  WiFi.setHostname("EiEiEi");
+  WiFi.setHostname(WIFI_HOSTNAME);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+  int cnt = 0;
   while (WiFi.status() != WL_CONNECTED)
   {
-    delay(1000);
     Serial.print(F("."));
+    cnt++;
+    // irgendein bug - keine ahnung - wird dadurch behoben
+    // manchmal funktioniert die wlan verbindung nach einem reset nicht
+    // und ein weiterer reset ist nötig -> wird dadurch umgangen
+    if (cnt > 10)
+    {
+        WiFi.begin(ssid, password);
+        cnt = 0;
+    }
+    delay(500);
   }
   Serial.println();
 
   Serial.println(F("WiFi connected"));
   Serial.println(F("IP address: "));
   Serial.println(WiFi.localIP());
-  ArduinoOTA.setHostname(PET_NAME);
 
   ArduinoOTA
       .onStart([]() {
@@ -218,6 +227,7 @@ void setup()
           Serial.println("End Failed");
       });
 
+  ArduinoOTA.setHostname(WIFI_HOSTNAME);
   ArduinoOTA.begin();
 
   //Subscribe to server notifications
