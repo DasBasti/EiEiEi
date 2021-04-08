@@ -37,6 +37,9 @@ Pet my_pet(PET_NAME);
 #define uS_TO_S_FACTOR 1000000ULL /* Conversion factor for micro seconds to seconds */
 #define uS_TO_mS_FACTOR 1000ULL   /* Conversion factor for micro seconds to milli seconds */
 #define TIME_TO_SLEEP 5           /* Time ESP32 will go to sleep (in seconds) */
+#define TOUCH_THRESHOLD 30        /* Threshold for Touch Detection */
+#define TOUCH_AVERAGE 3           /* Amount of Samples for Average */
+
 RTC_DATA_ATTR int bootCount = 0;
 //#define SLEEPDELAY
 int fixPointFactor = 1000;
@@ -45,6 +48,10 @@ int fixPointFactor = 1000;
 //const int button2Pin = 22;
 //const int button3Pin = 19;
 const int soundPin = 23;
+
+int touch1 = 100;
+int touch2 = 100;
+int touch3 = 100;
 
 // ESP32 "LED" Channel for sound
 #define SOUND_CHAN 0
@@ -452,45 +459,27 @@ void loop()
   //esp_light_sleep_start();
   //DelayLightSleep(50);
 
-  int touch1 = 0;
-  int touch2 = 0;
-  int touch3 = 0;
+  touch1 = (touch1 * (TOUCH_AVERAGE - 1) + touchRead(T5)) / TOUCH_AVERAGE;
+  touch2 = (touch2 * (TOUCH_AVERAGE - 1) + touchRead(T6)) / TOUCH_AVERAGE;
+  touch3 = (touch3 * (TOUCH_AVERAGE - 1) + touchRead(T7)) / TOUCH_AVERAGE;
 
-  touch1 += touchRead(T5);
-  touch2 += touchRead(T6);
-  touch3 += touchRead(T7);
-  touch1 += touchRead(T5);
-  touch2 += touchRead(T6);
-  touch3 += touchRead(T7);
-  touch1 += touchRead(T5);
-  touch2 += touchRead(T6);
-  touch3 += touchRead(T7);
-  touch1 = touch1 / 3;
-  touch2 = touch2 / 3;
-  touch3 = touch3 / 3;
-  if (touch1 < 20)
-  {
-    button1State = true;
+  button1State = touch1 < TOUCH_THRESHOLD;
+  button2State = touch2 < TOUCH_THRESHOLD;
+  button3State = touch3 < TOUCH_THRESHOLD;
+
+  if (button1State)
     loading_cloud_save = false;
-  }
-  else
-    button1State = false;
-  if (touch2 < 20)
-    button2State = true;
-  else
-    button2State = false;
-  if (touch3 < 20)
-    button3State = true;
-  else
-    button3State = false;
-  //button1State = digitalRead(button1Pin);
-  //button2State = digitalRead(button2Pin);
-  //button3State = digitalRead(button3Pin);
-  //Hier Sleep einbauen
-  //delay(50);
 
-  //char* str = "";
-  if (!loading_cloud_save)
+#ifdef TOUCH_DEBUG
+  Serial.print('a');
+  Serial.print(touch1);
+  Serial.print('b');
+  Serial.print(touch2);
+  Serial.print('c');
+  Serial.println(touch3);
+#endif
+
+  if (my_pet.GetIsAlive())
   {
 
     if (my_pet.GetIsAlive())
