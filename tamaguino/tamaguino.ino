@@ -111,14 +111,14 @@ bool menuDepth = false;
 bool justOpened = false;
 #define MENUSIZE 8
 #define STRING_SIZE 14
-const char mainMenu[MENUSIZE][8][STRING_SIZE] PROGMEM = {
+const char mainMenu[MENUSIZE][9][STRING_SIZE] PROGMEM = {
     {"Versorgen", "Apfel", "Steak", "Wasser", NULL},
     {"Spiel", NULL},
     {"Schlafen", NULL},
     {"Sauber machen", NULL},
     {"Arzt", NULL},
     {"Trainieren", NULL},
-    {"Status", "Hunger", "Zufrieden", "Gesundheit", "Verhalten", "Gewicht", "Alter", NULL},
+    {"Status", "Hunger", "Zufrieden", "Gesundheit", "Verhalten", "Gewicht", "Alter", "Sore", NULL},
     {"Einstellung", "Ton",
      //"something",
      NULL},
@@ -1405,6 +1405,11 @@ void loop()
         {
           display.print(my_pet.GetAge(), 1);
           display.println(F(" y."));
+        }
+        if (setting == 707)
+        {
+          display.setCursor(80, 16);
+          display.print(hiScore, 1);
         }
         if (setting == 801)
         {
