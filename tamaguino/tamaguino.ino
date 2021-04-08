@@ -210,7 +210,7 @@ void mqtt_callback(char *topic, byte *bpayload, unsigned int length)
 
   if (String(topic) == (subPath + "poops"))
   {
-    hiScore = (payload.toInt() / fixPointFactor);
+    my_pet.SetPoops(payload.toInt() / fixPointFactor);
     values++;
   }
 
