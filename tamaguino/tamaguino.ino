@@ -63,6 +63,9 @@ int touch3 = 100;
 #define OLED_SCL 4
 Adafruit_SSD1306 display(128, 64, &Wire); //, OLED_RESET);
 
+#define TIMEOUT_MILLIS 60000
+unsigned long timeout = 0;
+
 //Adafruit_SSD1306 display(OLED_RESET);
 int button1State = 0;
 int button2State = 0;
@@ -313,49 +316,53 @@ void setup()
   Serial.println(WiFi.localIP());
 
   ArduinoOTA
-      .onStart([]() {
-        String type;
-        if (ArduinoOTA.getCommand() == U_FLASH)
-          type = "sketch";
-        else // U_SPIFFS
-          type = "filesystem";
+      .onStart([]()
+               {
+                 String type;
+                 if (ArduinoOTA.getCommand() == U_FLASH)
+                   type = "sketch";
+                 else // U_SPIFFS
+                   type = "filesystem";
 
-        // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-        Serial.println("Start updating " + type);
-        display.clearDisplay();
-        display.setCursor(2, 2);
-        display.print("Starting OTA...");
-      })
-      .onEnd([]() {
-        Serial.println("\nEnd");
-        display.setCursor(2, 22);
-        display.print("OTA finished");
-      })
-      .onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-        display.setCursor(2, 12);
-        display.printf("Progress: %u%%\r", (progress / (total / 100)));
-      })
-      .onError([](ota_error_t error) {
-        String error_msg = "";
-        Serial.printf("Error[%u]: ", error);
-        display.setCursor(2, 22);
-        display.printf("Error[%u]: ", error);
-        if (error == OTA_AUTH_ERROR)
-          error_msg = "Auth Failed";
-        else if (error == OTA_BEGIN_ERROR)
-          error_msg = "Begin Failed";
-        else if (error == OTA_CONNECT_ERROR)
-          error_msg = "Connect Failed";
-        else if (error == OTA_RECEIVE_ERROR)
-          error_msg = "Receive Failed";
-        else if (error == OTA_END_ERROR)
-          error_msg = "End Failed";
+                 // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+                 Serial.println("Start updating " + type);
+                 display.clearDisplay();
+                 display.setCursor(2, 2);
+                 display.print("Starting OTA...");
+               })
+      .onEnd([]()
+             {
+               Serial.println("\nEnd");
+               display.setCursor(2, 22);
+               display.print("OTA finished");
+             })
+      .onProgress([](unsigned int progress, unsigned int total)
+                  {
+                    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+                    display.setCursor(2, 12);
+                    display.printf("Progress: %u%%\r", (progress / (total / 100)));
+                  })
+      .onError([](ota_error_t error)
+               {
+                 String error_msg = "";
+                 Serial.printf("Error[%u]: ", error);
+                 display.setCursor(2, 22);
+                 display.printf("Error[%u]: ", error);
+                 if (error == OTA_AUTH_ERROR)
+                   error_msg = "Auth Failed";
+                 else if (error == OTA_BEGIN_ERROR)
+                   error_msg = "Begin Failed";
+                 else if (error == OTA_CONNECT_ERROR)
+                   error_msg = "Connect Failed";
+                 else if (error == OTA_RECEIVE_ERROR)
+                   error_msg = "Receive Failed";
+                 else if (error == OTA_END_ERROR)
+                   error_msg = "End Failed";
 
-        Serial.println(error_msg);
-        display.setCursor(2, 32);
-        display.print(error_msg);
-      });
+                 Serial.println(error_msg);
+                 display.setCursor(2, 32);
+                 display.print(error_msg);
+               });
 
   ArduinoOTA.setHostname(WIFI_HOSTNAME);
   ArduinoOTA.begin();
@@ -391,7 +398,7 @@ void setup()
     display.setCursor(0, 0);
     display.print(F(" Junkies Easteregg "));
     display.drawBitmap(34, 10, block[x], 54, 54, WHITE);
-    display.display();
+    display_display();
 #ifdef SLEEPDELAY
     DelayLightSleep(100);
 #else
@@ -432,7 +439,7 @@ void setup()
   delay(2200);
 #endif
   // end splash
-
+  timeout = millis();
   display.clearDisplay();
   // ESP32 save current
   //esp_bt_controller_disable();
@@ -442,6 +449,12 @@ void setup()
   esp_sleep_enable_timer_wakeup(50 * uS_TO_mS_FACTOR);
   // ESP32 Tocuh wakeup
   //esp_sleep_get_touchpad_wakeup_status();
+}
+
+void display_display()
+{
+  if (millis() - timeout > TIMEOUT_MILLIS)
+    display.display();
 }
 
 void loop()
@@ -469,6 +482,9 @@ void loop()
 
   if (button1State)
     loading_cloud_save = false;
+
+  if (button1State || button2State || button3State)
+    timeout = millis();
 
 #ifdef TOUCH_DEBUG
   Serial.print('a');
@@ -1189,7 +1205,7 @@ void loop()
 #else
               delay(150);
 #endif
-              display.display();
+              display_display();
             }
           }
 
@@ -1301,7 +1317,7 @@ void loop()
                 display.fillRect(32, 23, 64, 16, WHITE);
                 display.fillRect(56, 0, 16, 64, WHITE);
               }
-              display.display();
+              display_display();
 #ifdef SLEEPDELAY
               DelayLightSleep(300);
 #else
@@ -1330,7 +1346,7 @@ void loop()
               }
               display.setCursor(100 + 3 * i, 32);
               display.print(F("!"));
-              display.display();
+              display_display();
 #ifdef SLEEPDELAY
               DelayLightSleep(150);
 #else
@@ -1477,7 +1493,7 @@ void loop()
         display.println(score);
       }
       display.fillRect(0, 0, 3, 3, WHITE);
-      display.display();
+      display_display();
       if (millis() - lastCloud > 30000)
       {
         lastCloud = millis();
@@ -1491,7 +1507,7 @@ void loop()
       display.setCursor(0, 0);
       display.setTextColor(WHITE);
       display.println(F("Gestorben...\n\nTaste 1 zum\nneustarten"));
-      display.display();
+      display_display();
 
       if (button1State == HIGH)
       {
