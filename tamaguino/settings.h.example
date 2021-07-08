@@ -5,6 +5,8 @@
  * WIFI_*: Access to yout wifi network
  * PET_NAME: Name of your pet to be shown in event log
  */
+#ifndef _SETTINGS_H_
+#define _SETTINGS_H_
 
 #define CLOUD_SAVE
 
@@ -12,3 +14,5 @@
 #define WIFI_PASS "SuperG3he1M"
 #define WIFI_HOSTNAME "EiEiEi"
 #define PET_NAME "Dino"
+
+#endif
