@@ -24,14 +24,27 @@ jobs:
     - name: Run PlatformIO build on selected platforms
       run: platformio run 
       
-    - name: Upload .bin file
+    - name: Upload eieiei.bin file
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware.bin
-        path: .pio/build/eieiei_esp32dev/firmware.bin
-        retention-days: 5   
-        
+        name: eieiei.bin
+        path: .pio/build/eieiei/firmware.bin
+
+    - name: Upload eckeckeck_black.bin file
+      if: success()
+      uses: actions/upload-artifact@v2
+      with:
+        name: eckeckeck_black.bin
+        path: .pio/build/eckeckeck_black/firmware.bin
+
+    - name: Upload eckeckeck_red.bin file
+      if: success()
+      uses: actions/upload-artifact@v2
+      with:
+        name: eckeckeck_red.bin
+        path: .pio/build/eckeckeck_red/firmware.bin
+
     - name: Upload .elf file
       if: success()
       uses: actions/upload-artifact@v2

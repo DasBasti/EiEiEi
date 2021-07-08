@@ -37,8 +37,10 @@ Pet my_pet(PET_NAME);
 #define uS_TO_S_FACTOR 1000000ULL /* Conversion factor for micro seconds to seconds */
 #define uS_TO_mS_FACTOR 1000ULL   /* Conversion factor for micro seconds to milli seconds */
 #define TIME_TO_SLEEP 5           /* Time ESP32 will go to sleep (in seconds) */
-#define TOUCH_THRESHOLD 30        /* Threshold for Touch Detection */
-#define TOUCH_AVERAGE 3           /* Amount of Samples for Average */
+#ifndef TOUCH_THRESHOLD           // should be defined by build env!
+#define TOUCH_THRESHOLD 25        /* Threshold for Touch Detection */
+#endif
+#define TOUCH_AVERAGE 2 /* Amount of Samples for Average */
 
 RTC_DATA_ATTR int bootCount = 0;
 //#define SLEEPDELAY
@@ -239,52 +241,31 @@ void mqtt_callback(char *topic, byte *bpayload, unsigned int length)
   }
 }
 
-bool mqtt_reconnect()
-{
-  // look if we are connected
-  if (!mqtt.connected())
-  {
-    Serial.print("Attempting MQTT connection... ");
-    // Attempt to connect
-    if (mqtt.connect("arduinoClient"))
-    {
-      String id;
-      for (size_t i = 0; i < 8; i++)
-        id += String(UniqueID[i], HEX);
-      id.toCharArray(MQTT_CLIENTID, 16);
-
-      Serial.println("connected");
-      subPath = "dino/" + id + "/" + PET_NAME + "/";
-
-#ifdef CLOUD_SAVE
-      if (loading_cloud_save)
-      {
-        mqtt.subscribe((subPath + "#").c_str());
-        Serial.print("sub to: ");
-        Serial.print(subPath);
-        Serial.println();
-      }
-#endif
-    }
-    else
-    {
-      Serial.print("failed, rc=");
-      Serial.print(mqtt.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 1 seconds before retrying
-      delay(1000);
-    }
-  }
-  return mqtt.connected();
-}
-
 void setup()
 {
   Serial.begin(115200);
   UniqueIDdump(Serial);
 
-  mqtt_reconnect();
-  // subscribe to subPath to get retained messages
+  pinMode(OLED_SUPPLY_nEN, OUTPUT);
+  digitalWrite(OLED_SUPPLY_nEN, LOW);
+  Wire.begin(OLED_SDA, OLED_SCL);
+  //pinMode(button2Pin, INPUT);
+  //pinMode(button3Pin, INPUT);
+
+  // Setting up sound
+  // see https://github.com/espressif/arduino-esp32/issues/1720#issuecomment-410275623
+  ledcSetup(SOUND_CHAN, 1E5, 12);
+  ledcAttachPin(soundPin, SOUND_CHAN);
+
+  //pinMode(13,OUTPUT);
+
+  randomSeed(analogRead(0));
+
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C, false, false);
+  display.dim(0);
+  display.clearDisplay();
+  int x = 0;
+  int y = 0;
 
   Serial.print(F("Connecting to "));
   Serial.println(ssid);
@@ -295,26 +276,53 @@ void setup()
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   int cnt = 0;
+  bool second_run = false;
   while (WiFi.status() != WL_CONNECTED)
   {
-    Serial.print(F("."));
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.print(F("    Connect WiFi"));
+    display.drawBitmap(34, 10, block[cnt % 13], 54, 54, WHITE);
+    display_display();
     cnt++;
     // irgendein bug - keine ahnung - wird dadurch behoben
     // manchmal funktioniert die wlan verbindung nach einem reset nicht
     // und ein weiterer reset ist nötig -> wird dadurch umgangen
-    if (cnt > 10)
+    if (cnt > 13 * 5 && !second_run)
     {
       WiFi.begin(ssid, password);
       cnt = 0;
+      second_run = true;
     }
-    delay(500);
+    else if (second_run)
+    {
+      break;
+    }
+    delay(100);
   }
   Serial.println();
-
-  Serial.println(F("WiFi connected"));
-  Serial.println(F("IP address: "));
-  Serial.println(WiFi.localIP());
-
+  if (WiFi.isConnected())
+  {
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.print(F("      Connected"));
+    display.drawBitmap(34, 10, block[0], 54, 54, WHITE);
+    display_display();
+    Serial.println(F("WiFi connected"));
+    Serial.println(F("IP address: "));
+    Serial.println(WiFi.localIP());
+  }
+  else
+  {
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.print(F("       No Wifi!"));
+    display.drawBitmap(34, 10, block[0], 54, 54, WHITE);
+    display_display();
+  }
   ArduinoOTA
       .onStart([]()
                {
@@ -367,52 +375,6 @@ void setup()
   ArduinoOTA.setHostname(WIFI_HOSTNAME);
   ArduinoOTA.begin();
 
-  //Subscribe to server notifications
-
-  Serial.println(F("Cloud Connected!"));
-
-  pinMode(OLED_SUPPLY_nEN, OUTPUT);
-  digitalWrite(OLED_SUPPLY_nEN, LOW);
-  Wire.begin(OLED_SDA, OLED_SCL);
-  //pinMode(button2Pin, INPUT);
-  //pinMode(button3Pin, INPUT);
-
-  // Setting up sound
-  // see https://github.com/espressif/arduino-esp32/issues/1720#issuecomment-410275623
-  ledcSetup(SOUND_CHAN, 1E5, 12);
-  ledcAttachPin(soundPin, SOUND_CHAN);
-
-  //pinMode(13,OUTPUT);
-
-  randomSeed(analogRead(0));
-
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C, false, false);
-  display.dim(0);
-  display.clearDisplay();
-  int x = 0;
-  int y = 0;
-  while (y < 8)
-  {
-    display.clearDisplay();
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-    display.print(F(" Junkies Easteregg "));
-    display.drawBitmap(34, 10, block[x], 54, 54, WHITE);
-    display_display();
-#ifdef SLEEPDELAY
-    DelayLightSleep(100);
-#else
-    delay(100);
-#endif
-    if (x == 13)
-      x = 0;
-    else
-      x++;
-    y++;
-  }
-
-  //splash tone
-
   esp32tone(500, 200);
 #ifdef SLEEPDELAY
   DelayLightSleep(200);
@@ -454,15 +416,14 @@ void setup()
 void display_display()
 {
   if (millis() - timeout > TIMEOUT_MILLIS)
-    display.display();
+    display.clearDisplay();
+  display.display();
 }
 
 void loop()
 {
 
   ArduinoOTA.handle();
-  mqtt_reconnect();
-  mqtt.loop();
 #ifdef SLEEPDELAY
   DelayLightSleep(50);
 #else
@@ -484,7 +445,9 @@ void loop()
     loading_cloud_save = false;
 
   if (button1State || button2State || button3State)
+  {
     timeout = millis();
+  }
 
 #ifdef TOUCH_DEBUG
   Serial.print('a');
@@ -1492,7 +1455,8 @@ void loop()
         }
         display.println(score);
       }
-      display.fillRect(0, 0, 3, 3, WHITE);
+      if (WiFi.isConnected())
+        display.fillRect(0, 0, 3, 3, WHITE);
       display_display();
       if (millis() - lastCloud > 30000)
       {
