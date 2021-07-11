@@ -118,7 +118,7 @@ bool justOpened = false;
 #define STRING_SIZE 14
 const char mainMenu[MENUSIZE][9][STRING_SIZE] PROGMEM = {
     {"Essen", "Apfel", "Steak", "Wasser", NULL},
-    {"Spielen", NULL},
+    {"Spielen", "Jumpy", "Pong", NULL},
     {"Schlafen", NULL},
     {"Sauber machen", NULL},
     {"Arzt", NULL},
@@ -161,6 +161,25 @@ bool obstacle1show = false;
 bool obstacle2show = false;
 int obstacle1XPos = 0;
 int obstacle2XPos = 0;
+
+//game2
+
+int pong = 1;
+bool game2 = false;
+int hoch = 20;
+int Choch = 20;
+
+int xball = 64;
+int yball = 32;
+
+int xballfakt = 3;
+int yballfakt = 0;
+
+int counter1 = 0;
+int counter2 = 0;
+
+int xtest = 2;
+
 
 #ifdef CLOUD_SAVE
 bool loading_cloud_save = true;
@@ -532,6 +551,28 @@ void loop()
             jumping = true;
           }
         }
+        else if (game2)
+        {
+          if (hoch < 64 -17)
+          {
+           hoch +=2;
+          }
+          if (pong == 1)
+          {
+            pong = 2;
+          }
+          if (pong == 3)
+          {
+            pong = 1;
+          }
+          else
+          {
+            if (hoch < 64 -17)
+            {
+              hoch +=2;
+            }
+          }
+        }
         else
         {
           // MENU
@@ -606,6 +647,13 @@ void loop()
 #else
             delay(60);
 #endif
+          }
+        }
+        if (game2)
+        {
+          if (hoch > 0)
+          {
+            hoch -=2;
           }
         }
         else
@@ -686,6 +734,20 @@ void loop()
           level = 0;
           paused = false;
         }
+        if (game2)
+        {
+          game2 = false;
+          pong = 1;
+          hoch = 20;
+          Choch = 20;
+          xball = 64;
+          yball = 32;
+          xballfakt = 3;
+          yballfakt = 0;
+          counter1 = 0;
+          counter2 = 0;
+          xtest = 2;
+        }
         else
         {
           if (!menuDepth)
@@ -737,7 +799,7 @@ void loop()
       {
         display.fillCircle(sunXPos, 2 * sunRadius, sunRadius, WHITE);
         display.fillCircle(sunXPos - moonShadow, 2 * sunRadius, sunRadius, BLACK);
-        //if(walkPos == 5){
+        //if (walkPos == 5){
         if ((int)round(cloud1XPos) % 5 == 0)
         {
           for (int i = 0; i < 6; i++)
@@ -959,6 +1021,132 @@ void loop()
 
         /* ---------- END GAME ----------*/
       }
+      //---------------------------GAME2------------------------------------------------------//
+      else if (game2)
+      { 
+        display.clearDisplay();
+        if (pong == 1)
+        {
+          display.drawBitmap(0, 0, pongb, 128, 64, WHITE);
+
+          counter1 = 0;
+          counter2 = 0;
+
+        }
+        if (pong == 2)
+        {
+          display.drawLine(64 ,0 ,64 ,64 ,WHITE);
+          display.fillRect(5, hoch, 5, 15, WHITE);
+
+          //COUNTER
+
+          display.setTextSize(1);
+
+          display.setCursor(64 - 15, 5);
+          display.setTextColor(WHITE);
+          display.print(counter1);
+
+          display.setCursor(64 + 10, 5);
+          display.setTextColor(WHITE);
+          display.print(counter2);
+          
+
+          //BALL
+          xball = xball + xballfakt;
+          yball = yball + yballfakt;
+
+          for (int i = 0; i < 3; i++)
+          {
+
+            if (xball == 115 + i)
+            {
+              if (yball > Choch -1 && yball < Choch + 16){
+                xballfakt = xballfakt - (2*xballfakt);
+                esp32tone(500, 10);
+              }
+              
+            }
+            if (xball == 127 + i ){
+              xballfakt = xballfakt - (2*xballfakt);
+              yballfakt =  1;
+              counter1++;
+              xball = 64;
+              yball = 32;
+            }
+            if (yball == 63 +i){
+              yballfakt = yballfakt - (2*yballfakt);
+            }
+            if (xball == 11 + i ){
+              if (yball > hoch-1 && yball < hoch + 16){
+                xballfakt = xballfakt - (2*xballfakt);
+                esp32tone(500, 10);
+              }
+              if (yball > hoch -1 && yball < hoch + 5){
+                yballfakt -- ;
+              }
+              /*if (yball > hoch -6 && yball < hoch + 10){
+                yballfakt =  0; 
+              }*/
+              if (yball > hoch -11 && yball < hoch + 16){
+                yballfakt++;
+              }
+            }
+            if (xball == -1 + i){
+              xballfakt = xballfakt - (2*xballfakt);
+              yballfakt =  -1;
+              counter2++;
+              xball = 64;
+              yball = 32;
+            }
+            if (yball == -1 + i ){
+              yballfakt = yballfakt - (2*yballfakt);
+            }
+          }
+
+          //Serial.println(xball);
+          //Serial.println(yballfakt);
+
+          display.fillCircle(xball, yball, 3, WHITE);
+
+
+
+          //COMPUTER
+
+          if (Choch < 64 - 15 || Choch > 0){
+            if (Choch > yball -7){
+              Choch -= 2;
+            }
+            if (Choch < yball -9){
+              Choch += 2;
+            }
+          }
+          display.fillRect(118, Choch, 5, 15, WHITE);
+
+          if (counter2 > 20 || counter1 > 20){
+            pong = 3;
+          }
+        }
+        //WINNER
+        if (pong == 3){
+          if (counter1 > 20){
+            display.setCursor(20, 20);
+            display.setTextSize(2);
+            display.setTextColor(WHITE);
+            display.print("WON!");
+          }
+          if (counter2 > 20){
+            display.setCursor(20, 20);
+            display.setTextSize(2);
+            display.setTextColor(WHITE);
+            display.print("LOST");
+          }
+        }
+      
+       
+
+        
+      // END GAME
+      }
       else
       {
 
@@ -1072,7 +1260,7 @@ void loop()
 
       /* ------- MENUS AND ACTIONS ------- */
       //render menu
-      if (menuOpened and !game)
+      if (menuOpened and !game and !game2)
       {
         display.fillRect(0, 0, display.width(), 30, BLACK);
         display.drawRect(0, 0, display.width(), 29, WHITE);
@@ -1246,6 +1434,9 @@ void loop()
             grassXPos = 0;
           }
           break;
+        case 202:
+          game2 = true;
+          break;
         case 301:
           //sleep
           my_pet.ToggleIsSleeping();
@@ -1327,12 +1518,12 @@ void loop()
       }
 
       //display settings
-      if (setting > 0 and !game)
+      if (setting > 0 and !game and !game2)
       {
         display.setCursor(8, 16);
         if (setting == 201)
         {
-          display.println(F("macht Spass"));
+          //display.println(F("macht Spass"));
         }
         if (setting == 301)
         {
