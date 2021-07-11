@@ -117,8 +117,8 @@ bool justOpened = false;
 #define MENUSIZE 8
 #define STRING_SIZE 14
 const char mainMenu[MENUSIZE][9][STRING_SIZE] PROGMEM = {
-    {"Versorgen", "Apfel", "Steak", "Wasser", NULL},
-    {"Spiel", NULL},
+    {"Essen", "Apfel", "Steak", "Wasser", NULL},
+    {"Spielen", NULL},
     {"Schlafen", NULL},
     {"Sauber machen", NULL},
     {"Arzt", NULL},
